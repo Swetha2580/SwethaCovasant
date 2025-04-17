@@ -1,0 +1,56 @@
+import asyncio
+import aiohttp
+from bs4 import BeautifulSoup
+import re
+import os
+
+async def download_url(session, url, save_path=None):
+  
+    try:
+        async with session.get(url) as response:
+            if response.status == 200:
+                content = await response.text()
+                print(f"Downloaded: {url}")
+                if save_path:
+                    with open(save_path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    print(f"Saved to: {save_path}")
+                return content
+            else:
+                print(f"Failed to download {url}: Status code {response.status}")
+                return None
+    except aiohttp.ClientError as e:
+        print(f"Error downloading {url}: {e}")
+        return None
+
+async def download_links(session, base_url, html_content, download_dir="downloaded_links"):
+   
+    soup = BeautifulSoup(html_content, 'html.parser')
+    links = []
+    for link in soup.find_all('a', href=True):
+        href = link['href']
+        
+        if href.startswith(('http://', 'https://')):
+            links.append(href)
+        elif href.startswith('/'):
+           
+            full_url = f"{base_url.rstrip('/')}{href}"
+            links.append(full_url)
+
+    os.makedirs(download_dir, exist_ok=True)
+
+    download_tasks = [download_url(session, link, os.path.join(download_dir, f"link_{i+1}.html")) for i, link in enumerate(links)]
+    await asyncio.gather(*download_tasks)
+    print(f"\nDownloaded {len(links)} links from {base_url} to '{download_dir}'")
+
+async def main(start_url):
+   
+    async with aiohttp.ClientSession() as session:
+        html_content = await download_url(session, start_url, "main_page.html")
+        if html_content:
+            await download_links(session, start_url, html_content)
+
+if __name__ == "__main__":
+    target_url = input("Enter the URL to start with: ")
+    asyncio.run(main(target_url))
+    print("Task completed.")
