@@ -1,0 +1,38 @@
+from flask import Flask, render_template, request, redirect, url_for
+
+app = Flask(__name__)
+
+SHARED_CONTENT_FILE = "notepad.txt"
+
+@app.route("/updatefortoday", methods=['GET','POST'])
+def update_today():
+    if request.method == 'POST':
+        content = request.form['content']
+        with open(SHARED_CONTENT_FILE, 'w') as f:
+            f.write(content)
+        return redirect(url_for('share'))
+    return render_template('update.html') 
+
+@app.route("/share", methods=['GET'])
+def share():
+    try:
+        with open(SHARED_CONTENT_FILE, 'r') as f:
+            shared_content = f.read()
+    except FileNotFoundError:
+        shared_content = "No content shared yet."
+    return render_template('share.html', content=shared_content) 
+
+@app.route("/clearnotepadtxt", methods=['GET'])
+def clear_notepad():
+    try:
+        with open(SHARED_CONTENT_FILE, 'w') as f:
+            f.write("")
+        return "Notepad cleared."
+ 
+        
+    except Exception as e:
+        return f"Error clearing notepad: {e}"    
+ 
+
+if __name__ == '__main__':
+    app.run(debug=True)
